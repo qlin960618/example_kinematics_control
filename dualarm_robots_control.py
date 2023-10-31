@@ -37,9 +37,8 @@ CONTROL_PARAMETERS = {
     "eta_d_RCM": 3.0,
     "d_safe_RCM": 0.01,
 
-    # "vrep_ip": "127.0.0.1",
-    "vrep_ip": "10.198.113.186",
-    "vrep_port": 19997,
+    "vrep_ip": "127.0.0.1",  # ip of the computer running CoppeliaSim
+    "vrep_port": 19997,  # need to match remoteAPI.txt defined port
 
     "robot1_init_q": [0.0, 0.0, 1.57079637, 0.0, 0.61086524, 0.0],
     "robot2_init_q": [-0.61086524, 0.0, 1.57079637, 0.0, 0.0, 0.0],
