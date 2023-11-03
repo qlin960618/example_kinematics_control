@@ -32,12 +32,12 @@ CONTROL_PARAMETERS = {
     # VFI parameter
     "eta_d_joint": 1.0,
     "eta_d_cylinder": 1.0,
-    "d_safe_cylinder": 0.025,
+    "d_safe_cylinder": 0.0125,
     "RCM_obj_name": "VFI_RCM_Sphere",
     "eta_d_RCM": 3.0,
-    "d_safe_RCM": 0.01,
+    "d_safe_RCM": 0.0001,
 
-    "vrep_ip": "127.0.0.1",  # ip of the computer running CoppeliaSim
+    "vrep_ip": "10.198.113.186",  # ip of the computer running CoppeliaSim
     "vrep_port": 19997,  # need to match remoteAPI.txt defined port
 
     "robot1_init_q": [0.0, 0.0, 1.57079637, 0.0, 0.61086524, 0.0],
@@ -214,6 +214,33 @@ def main(config):
             W_rcm = np.hstack([J_1_rcm, np.zeros([1, robot2_dim])])
             w_rcm = np.array([-D_rcm_tilda])
 
+
+            #################################
+            # Example Rpbpt Point tp Point Avoidence
+            #################################
+            p1_tfdq = dql.DQ([1])
+            p2_tfdq = dql.DQ([1])
+            eta_d_p2p = 1.0
+            d_safe_p2p = 0.1
+
+            p1_x = robot1_x * p1_tfdq
+            p2_x = robot2_x * p2_tfdq
+            D_p2p = DQ_Geometry.point_to_point_squared_distance(dql.translation(p1_x), dql.translation(p2_x))
+            D_p2p_tilda = (D_p2p - d_safe_p2p**2) * eta_d_p2p
+            J_p1_2 = DQ_Kinematics.point_to_point_distance_jacobian(
+                DQ_Kinematics.translation_jacobian(dql.haminus8(p1_tfdq) @ Jx1, p1_x), dql.translation(p1_x),
+                dql.translation(p2_x)
+            )
+            J_p2_1 = DQ_Kinematics.point_to_point_distance_jacobian(
+                DQ_Kinematics.translation_jacobian(dql.haminus8(p2_tfdq) @ Jx2, p2_x), dql.translation(p2_x),
+                dql.translation(p1_x)
+            )
+
+            W_point_to_point = np.hstack([J_p1_2, J_p2_1])
+            w_point_to_point = np.array([-D_p2p_tilda])
+
+
+
             #################################
             # Quadratic Programing
             #################################
@@ -233,8 +260,8 @@ def main(config):
 
             H1_objb = objb * np.eye(robot1_dim)
             H2_objb = objb * np.eye(robot2_dim)
-            H1 = 2 * (alpha * Jt1.T @ Jt1 + (1.0 - alpha) * Nr1.T @ Nr1) * beta + H1_objb
-            H2 = 2 * (alpha * Jt2.T @ Jt2 + (1.0 - alpha) * Nr2.T @ Nr2) * (1.0 - beta) + H2_objb
+            H1 = (alpha * Jt1.T @ Jt1 + (1.0 - alpha) * Nr1.T @ Nr1) * beta + H1_objb
+            H2 = (alpha * Jt2.T @ Jt2 + (1.0 - alpha) * Nr2.T @ Nr2) * (1.0 - beta) + H2_objb
             H = block_diag(H1, H2)
             f1 = 2 * (alpha * err_t1.T @ Jt1 + (1.0 - alpha) * err_r1.T @ Nr1) * beta
             f2 = 2 * (alpha * err_t2.T @ Jt2 + (1.0 - alpha) * err_r2.T @ Nr2) * (1.0 - beta)
@@ -245,12 +272,14 @@ def main(config):
             W_ineq = np.vstack([
                 W_joint_limits,
                 W_line_to_line,
-                W_rcm,
+                # W_rcm,
+                W_point_to_point
             ])
             w_ineq = np.hstack([
                 w_joint_limits,
                 w_line_to_line,
-                w_rcm,
+                # w_rcm,
+                w_point_to_point
             ])
 
             try:
