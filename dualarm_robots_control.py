@@ -36,6 +36,8 @@ CONTROL_PARAMETERS = {
     "RCM_obj_name": "VFI_RCM_Sphere",
     "eta_d_RCM": 3.0,
     "d_safe_RCM": 0.0001,
+    "eta_d_p2p": 1.0,
+    "d_safe_p2p": 0.1,
 
     "vrep_ip": "10.198.113.186",  # ip of the computer running CoppeliaSim
     "vrep_port": 19997,  # need to match remoteAPI.txt defined port
@@ -220,8 +222,8 @@ def main(config):
             #################################
             p1_tfdq = dql.DQ([1])
             p2_tfdq = dql.DQ([1])
-            eta_d_p2p = 1.0
-            d_safe_p2p = 0.1
+            eta_d_p2p = config['eta_d_p2p']
+            d_safe_p2p = config['d_safe_p2p']
 
             p1_x = robot1_x * p1_tfdq
             p2_x = robot2_x * p2_tfdq
@@ -272,14 +274,14 @@ def main(config):
             W_ineq = np.vstack([
                 W_joint_limits,
                 W_line_to_line,
-                # W_rcm,
-                W_point_to_point
+                W_rcm,
+                # W_point_to_point
             ])
             w_ineq = np.hstack([
                 w_joint_limits,
                 w_line_to_line,
-                # w_rcm,
-                w_point_to_point
+                w_rcm,
+                # w_point_to_point
             ])
 
             try:
