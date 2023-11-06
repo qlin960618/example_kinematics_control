@@ -264,7 +264,7 @@ def main(config):
             H2_objb = objb * np.eye(robot2_dim)
             H1 = (alpha * Jt1.T @ Jt1 + (1.0 - alpha) * Nr1.T @ Nr1) * beta + H1_objb
             H2 = (alpha * Jt2.T @ Jt2 + (1.0 - alpha) * Nr2.T @ Nr2) * (1.0 - beta) + H2_objb
-            H = block_diag(H1, H2)
+            H = 2 * block_diag(H1, H2)
             f1 = 2 * (alpha * err_t1.T @ Jt1 + (1.0 - alpha) * err_r1.T @ Nr1) * beta
             f2 = 2 * (alpha * err_t2.T @ Jt2 + (1.0 - alpha) * err_r2.T @ Nr2) * (1.0 - beta)
             f = np.hstack([f1, f2])
