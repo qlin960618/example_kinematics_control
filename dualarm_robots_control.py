@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 CONTROL_PARAMETERS = {
-    "tau": 0.004,
-    "alpha": 0.99,
-    "beta": 0.5,
-    "objb": 0.01,
-    "n_": 40.0,
+    "tau": 0.004,  # sampling time
+    "alpha": 0.99,  # translation over rotation weight
+    "beta": 0.5,  # arm 1 over arm 2 weight
+    "objb": 0.001,  # damping factor
+    "n_": 40.0,  # control gain
 
     # VFI parameter
     "eta_d_joint": 1.0,
@@ -39,8 +39,8 @@ CONTROL_PARAMETERS = {
     "eta_d_p2p": 1.0,
     "d_safe_p2p": 0.1,
 
-    "vrep_ip": "10.198.113.186",  # ip of the computer running CoppeliaSim
-    "vrep_port": 19997,  # need to match remoteAPI.txt defined port
+    "vrep_ip": "127.0.0.1",  # ip of the computer running CoppeliaSim
+    "vrep_port": 20000,  # need to match remoteAPI.txt defined port
 
     "robot1_init_q": [0.0, 0.0, 1.57079637, 0.0, 0.61086524, 0.0],
     "robot2_init_q": [-0.61086524, 0.0, 1.57079637, 0.0, 0.0, 0.0],
@@ -86,9 +86,11 @@ def main(config):
     robot1_interface.set_x_and_xd_name(config['robot_1_x'], config['robot_1_xd'])
     robot2_interface.set_x_and_xd_name(config['robot_2_x'], config['robot_2_xd'])
 
+    # get reference frame from vrep and set it to the robot model
     robot1_interface.apply_vrep_reference_frame()
     robot2_interface.apply_vrep_reference_frame()
 
+    # Set the tooltip position, tip of the rod
     robot1_interface.set_effector(dql.DQ([1., 0., 0., 0., 0., 0., 0., 0.075]))
     robot2_interface.set_effector(dql.DQ([1., 0., 0., 0., 0., 0., 0., 0.075]))
 
@@ -98,6 +100,7 @@ def main(config):
     robot1_dim = robot1_interface.get_dim_configuration_space()
     robot2_dim = robot2_interface.get_dim_configuration_space()
     robots_dim = [robot1_dim, robot2_dim]
+    # Joint limits
     robot1_q_minus = robot1_interface.get_lower_q_limit()
     robot2_q_minus = robot2_interface.get_lower_q_limit()
     robot1_q_plus = robot1_interface.get_upper_q_limit()
@@ -115,8 +118,10 @@ def main(config):
 
         robot1_q = robot1_interface.get_joint_positions()
         robot2_q = robot2_interface.get_joint_positions()
+        robot_qs = [robot1_q, robot2_q]
         robot1_q_dot = np.zeros([robot1_interface.get_dim_configuration_space()])
         robot2_q_dot = np.zeros([robot2_interface.get_dim_configuration_space()])
+        robot_q_dots = [robot1_q_dot, robot2_q_dot]
 
         #################################################
         x1_ref = robots[0].fkm(config['robot1_init_q'])
@@ -134,15 +139,16 @@ def main(config):
         iteration = 0
         rate.sleep()
         while True:
+            # Control Method
             ##################################################
-            # control xd from vrep
+            # 1, control xd from vrep
             ##################################################
             robot1_xd = robot1_interface.get_xd_pose()
             robot2_xd = robot2_interface.get_xd_pose()
             ##################################################
-            # control xd from trajectory
+            # 2, control xd from trajectory
             ##################################################
-            #
+            # Write your code here
 
             ##################################################
             robot1_x = robot1_interface.fkm(robot1_q)
@@ -156,16 +162,19 @@ def main(config):
             Jx2 = robot2_interface.pose_jacobian(robot2_q)
 
             ##################################
+            # rotation Jacobian
             Jr1 = DQ_Kinematics.rotation_jacobian(Jx1)
             Jr2 = DQ_Kinematics.rotation_jacobian(Jx2)
             Nr1 = dql.haminus4(dql.rotation(robot1_xd)) @ dql.C4() @ Jr1
             Nr2 = dql.haminus4(dql.rotation(robot2_xd)) @ dql.C4() @ Jr2
 
+            #################################
+            # Translation Jacobian
             Jt1 = DQ_Kinematics.translation_jacobian(Jx1, robot1_x)
             Jt2 = DQ_Kinematics.translation_jacobian(Jx2, robot2_x)
 
             #################################
-            # Joint limit
+            # Joint limit constraints
             #################################
             robot_joint_limit = np.vstack([-np.eye(6), np.eye(6)])
             W_joint_limits = block_diag(robot_joint_limit, robot_joint_limit)

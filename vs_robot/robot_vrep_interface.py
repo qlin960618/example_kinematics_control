@@ -1,10 +1,12 @@
-from .dh_robot_wrapper import DHRobotWrapper
+from .robot_loader import RobotLoader
 from dqrobotics.interfaces.vrep import DQ_VrepInterface
+from dqrobotics.robot_modeling import DQ_SerialManipulator
 import dqrobotics as dql
 
 
-class VrepRobot(DHRobotWrapper):
+class VrepRobot:
     def __init__(self, config_path, vrep_robot_name, vrep):
+        self.robot_model = RobotLoader(config_path).get_kinematics()
         if vrep_robot_name.find('_') >= 0:
             self.vrep_name_prefix, self.vrep_name_suffix = vrep_robot_name.split('_')
             self.vrep_name_suffix = '_' + self.vrep_name_suffix
@@ -14,8 +16,6 @@ class VrepRobot(DHRobotWrapper):
             self.vrep_name_suffix = ""
 
         self.vrep = vrep
-
-        super().__init__(config_path)
 
         self.vrep_robot_ref_name = None
         self.vrep_robot_joint_names = None
@@ -53,9 +53,12 @@ class VrepRobot(DHRobotWrapper):
     ##################################################
     def fkm(self, qs=None):
         if qs is None:
-            return super().fkm(self.get_joint_positions())
+            return self.robot_model.fkm(self.get_joint_positions())
         else:
-            return super().fkm(qs)
+            return self.robot_model.fkm(qs)
+
+    def __getattr__(self, item):
+        return getattr(self.robot_model, item)
 
     ##################################################
     # quick tools
