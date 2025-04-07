@@ -5,16 +5,8 @@ import dqrobotics as dql
 
 
 class VrepRobot:
-    def __init__(self, config_path, vrep_robot_name, vrep):
+    def __init__(self, config_path, vrep):
         self.robot_model = RobotLoader(config_path).get_kinematics()
-        if vrep_robot_name.find('_') >= 0:
-            self.vrep_name_prefix, self.vrep_name_suffix = vrep_robot_name.split('_')
-            self.vrep_name_suffix = '_' + self.vrep_name_suffix
-            self.vrep_name_prefix = self.vrep_name_prefix + "_"
-        else:
-            self.vrep_name_prefix = vrep_robot_name + "_"
-            self.vrep_name_suffix = ""
-
         self.vrep = vrep
 
         self.vrep_robot_ref_name = None
@@ -23,7 +15,12 @@ class VrepRobot:
         self.vrep_x_name = None
         self.vrep_xd_name = None
 
-        self._process_vrep_robot_obj_name()
+    def set_vrep_joint_names(self, joint_names):
+        assert len(joint_names) == self.robot_model.get_dim_configuration_space()
+        self.vrep_robot_joint_names = joint_names
+
+    def set_vrep_robot_ref_name(self, ref_name):
+        self.vrep_robot_ref_name = ref_name
 
     ##################################################
     # initialization related
@@ -38,15 +35,6 @@ class VrepRobot:
 
     def get_reference_frame_from_vrep(self):
         return self.vrep.get_object_pose(self.vrep_robot_ref_name)
-
-    def _process_vrep_robot_obj_name(self):
-        # print(base_name)
-        n_dims = self.get_dim_configuration_space()
-        self.vrep_robot_ref_name = self.vrep_name_prefix + "reference_frame" + self.vrep_name_suffix
-        self.vrep_robot_joint_names = []
-        for i in range(n_dims):
-            self.vrep_robot_joint_names.append(
-                self.vrep_name_prefix + "joint{:d}".format(i + 1) + self.vrep_name_suffix)
 
     ##################################################
     # robot modeling related

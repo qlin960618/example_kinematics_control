@@ -34,7 +34,7 @@ CONTROL_PARAMETERS = {
     "eta_d_cylinder": 1.0,
     "d_safe_cylinder": 0.0125,
     "RCM_obj_name": "VFI_RCM_Sphere",
-    "eta_d_RCM": 3.0,
+    "eta_d_RCM": 1.0,
     "d_safe_RCM": 0.0001,
     "eta_d_p2p": 1.0,
     "d_safe_p2p": 0.1,
@@ -45,8 +45,10 @@ CONTROL_PARAMETERS = {
     "robot1_init_q": [0.0, 0.0, 1.57079637, 0.0, 0.61086524, 0.0],
     "robot2_init_q": [-0.61086524, 0.0, 1.57079637, 0.0, 0.0, 0.0],
 
-    "robot_1_base_name": "VS050_1",
-    "robot_2_base_name": "VS050_2#0",
+    "robot_1_reference_frame_name": "VS050_reference_frame_1",
+    "robot_2_reference_frame_name": "VS050_reference_frame_2#0",
+    "robot_1_joints_names": [f"VS050_joint{i+1}_1" for i in range(6)],
+    "robot_2_joints_names": [f"VS050_joint{i+1}_2#0" for i in range(6)],
     "robot_1_json": "./vs_robot/denso_vs050_DH_test.json",
     "robot_2_json": "./vs_robot/denso_vs050_DH_test.json",
     "robot_1_x": "x1",
@@ -80,26 +82,25 @@ def main(config):
     ##################################################
     # VRep and Robot modeling initialization
     ##################################################
-    robot1_interface = VrepRobot(config['robot_1_json'], config['robot_1_base_name'], vrep_interface)
-    robot2_interface = VrepRobot(config['robot_2_json'], config['robot_2_base_name'], vrep_interface)
-    robots_interface = [robot1_interface, robot2_interface]
+    robot1_interface = VrepRobot(config['robot_1_json'], vrep_interface)
+    robot2_interface = VrepRobot(config['robot_2_json'], vrep_interface)
+    robot1_interface.set_vrep_joint_names(config['robot_1_joints_names'])
+    robot2_interface.set_vrep_joint_names(config['robot_2_joints_names'])
+    robot1_interface.set_vrep_robot_ref_name(config['robot_1_reference_frame_name'])
+    robot2_interface.set_vrep_robot_ref_name(config['robot_2_reference_frame_name'])
     robot1_interface.set_x_and_xd_name(config['robot_1_x'], config['robot_1_xd'])
     robot2_interface.set_x_and_xd_name(config['robot_2_x'], config['robot_2_xd'])
+    robots = [robot1_interface, robot2_interface]
 
     # get reference frame from vrep and set it to the robot model
-    robot1_interface.apply_vrep_reference_frame()
-    robot2_interface.apply_vrep_reference_frame()
+    for robot in robots:
+        robot.apply_vrep_reference_frame()
+        # Set the tooltip position, tip of the rod
+        robot.set_effector(dql.DQ([1., 0., 0., 0., 0., 0., 0., 0.075]))
 
-    # Set the tooltip position, tip of the rod
-    robot1_interface.set_effector(dql.DQ([1., 0., 0., 0., 0., 0., 0., 0.075]))
-    robot2_interface.set_effector(dql.DQ([1., 0., 0., 0., 0., 0., 0., 0.075]))
-
-    robots = [robot1_interface,
-              robot2_interface]
-
-    robot1_dim = robot1_interface.get_dim_configuration_space()
-    robot2_dim = robot2_interface.get_dim_configuration_space()
-    robots_dim = [robot1_dim, robot2_dim]
+    robots_dim = [robot.get_dim_configuration_space() for robot in robots]
+    robot1_dim = robots_dim[0]
+    robot2_dim = robots_dim[1]
     # Joint limits
     robot1_q_minus = robot1_interface.get_lower_q_limit()
     robot2_q_minus = robot2_interface.get_lower_q_limit()
@@ -124,12 +125,14 @@ def main(config):
         robot_q_dots = [robot1_q_dot, robot2_q_dot]
 
         #################################################
-        x1_ref = robots[0].fkm(config['robot1_init_q'])
-        x2_ref = robots[1].fkm(config['robot2_init_q'])
-        robot1_interface.send_x_pose(x1_ref)
-        robot2_interface.send_x_pose(x2_ref)
-        robot1_interface.send_xd_pose(x1_ref)
-        robot2_interface.send_xd_pose(x2_ref)
+        if "robot1_init_q" in config:
+            x1_ref = robots[0].fkm(config['robot1_init_q'])
+            robot1_interface.send_x_pose(x1_ref)
+            robot1_interface.send_xd_pose(x1_ref)
+        if "robot2_init_q" in config:
+            x2_ref = robots[1].fkm(config['robot2_init_q'])
+            robot2_interface.send_x_pose(x2_ref)
+            robot2_interface.send_xd_pose(x2_ref)
 
         ##############################
         # loop initialization
@@ -227,17 +230,15 @@ def main(config):
 
 
             #################################
-            # Example Rpbpt Point tp Point Avoidence
+            # Example robot Point tp Point Avoidance
             #################################
             p1_tfdq = dql.DQ([1])
             p2_tfdq = dql.DQ([1])
-            eta_d_p2p = config['eta_d_p2p']
-            d_safe_p2p = config['d_safe_p2p']
 
             p1_x = robot1_x * p1_tfdq
             p2_x = robot2_x * p2_tfdq
             D_p2p = DQ_Geometry.point_to_point_squared_distance(dql.translation(p1_x), dql.translation(p2_x))
-            D_p2p_tilda = (D_p2p - d_safe_p2p**2) * eta_d_p2p
+            D_p2p_tilda = (D_p2p - config['d_safe_p2p']**2) * config['eta_d_p2p']
             J_p1_2 = DQ_Kinematics.point_to_point_distance_jacobian(
                 DQ_Kinematics.translation_jacobian(dql.haminus8(p1_tfdq) @ Jx1, p1_x), dql.translation(p1_x),
                 dql.translation(p2_x)
