@@ -55,7 +55,7 @@ unfortunately, due to some limitation with the Windows python environment, the p
 available for Windows. Only option natively are MacOS and Linux, however, windows would still have the option of 
 under WSL or WSL2
 ```shell
-pip install --index-url https://qlin:3ec14bd78afdd41a33b7af0a7741549dc59cf458@gitea.qlin.me/api/packages/qlin/pypi/simple/ nml-control-toolbox --no-cache-dir --upgrade
+pip install --index-url https://gitea.qlin.me/api/packages/qlin/pypi/simple/ nml-control-toolbox --no-cache-dir --upgrade
 ```
 ### Runing the example
 1. Open the CoppeliaSim scene `scene/VS050_TutorialControl_scene.ttt`
