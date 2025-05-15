@@ -203,11 +203,15 @@ def main(config):
         # set up vfi to task controller
         ########################################################################
         vfi_manager = VFIManager()
-        vfi_manager.add_entity("line2line_vfi", line_2_lin2_vfi)
-        vfi_manager.add_entity("rcm_vfi", rcm_vfi)
-        # vfi_manager.add_entity("p2p_vfi", p2p_vfi)
+        line2line_vfi_key = vfi_manager.add_entity("line2line_vfi", line_2_lin2_vfi)
+        rcm_vfi_key = vfi_manager.add_entity("rcm_vfi", rcm_vfi)
+        # p2p_vfi_key = vfi_manager.add_entity("p2p_vfi", p2p_vfi)
         task_controller.set_vfi_manager(vfi_manager)
 
+        # vfi_manager.set_entity_enabled(line2line_vfi_key, True)  # Already Default to True when added to VFIManager
+        # vfi_manager.set_entity_enabled(rcm_vfi_key, True)  # Already Default to True when added to VFIManager
+
+        vfi_manager.initialize([robot.robot_model for robot in robots])  # optional step to perform runtime optimization
 
         #################################################
         if "robot1_init_q" in config:

@@ -189,6 +189,8 @@ def main(config):
 
             #################################
             # Example Robot Line to Robot Line VFI
+            # M. M. Marinho, and et. al., “Active Constraints using Vector Field Inequalities for Surgical Robots,” ICRA, 2018,
+            # Section V, E
             #################################
             line1_tfdq = dql.DQ([1])
             line2_tfdq = dql.DQ([1])
@@ -212,6 +214,8 @@ def main(config):
 
             #################################
             # Example RCM  VFI
+            # M. M. Marinho, and et. al., “Active Constraints using Vector Field Inequalities for Surgical Robots,” ICRA, 2018,
+            # Section V, C
             #################################
             rcm_x = vrep_interface.get_object_pose(config['RCM_obj_name'])
             line1_tfdq = dql.DQ([1])
@@ -231,6 +235,8 @@ def main(config):
 
             #################################
             # Example robot Point tp Point Avoidance
+            # B. V. Adorno and M. M. Marinho, “DQ Robotics: a Library for Robot Modeling and Control,”
+            # IEEE Robot. Automat. Mag., vol. 28, no. 3, pp. 102–116, Sep. 2021, doi: 10.1109/MRA.2020.2997920.
             #################################
             p1_tfdq = dql.DQ([1])
             p2_tfdq = dql.DQ([1])
