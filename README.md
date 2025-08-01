@@ -6,7 +6,7 @@ This tutorial is designed for those who have completed the [MATLAB lesson](https
 
 ### Python Requirements
 
-* Python 3
+* Python >3.12
 
   * dqrobotics
   * quadprog
@@ -22,7 +22,7 @@ source venv/bin/activate # or venv\Scripts\activate.bat for Windows
 ```
 
 ```shell
-python3 -m pip install dqrobotics quadprog numpy scipy
+python3 -m pip install dqrobotics dqrobotics-interface-coppeliasim-vrep quadprog numpy scipy 
 ```
 
 ### CoppeliaSim Requirements
