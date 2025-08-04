@@ -22,7 +22,7 @@ source venv/bin/activate # or venv\Scripts\activate.bat for Windows
 ```
 
 ```shell
-python3 -m pip install dqrobotics dqrobotics-interface-coppeliasim-vrep quadprog numpy scipy 
+python3 -m pip install dqrobotics dqrobotics-interface-coppeliasim-vrep==0.25.6a2 quadprog numpy scipy 
 ```
 
 ### CoppeliaSim Requirements
