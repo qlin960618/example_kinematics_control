@@ -270,6 +270,7 @@ def main(config):
             alpha = config['alpha']
             beta = config['beta']
             objb = config['objb']
+            gain = config['n_']
 
             err_t1 = translation_error(robot1_t, dql.translation(robot1_xd)).vec4()
             err_t2 = translation_error(robot2_t, dql.translation(robot2_xd)).vec4()
@@ -281,8 +282,8 @@ def main(config):
             H1 = (alpha * Jt1.T @ Jt1 + (1.0 - alpha) * Nr1.T @ Nr1) * beta + H1_objb
             H2 = (alpha * Jt2.T @ Jt2 + (1.0 - alpha) * Nr2.T @ Nr2) * (1.0 - beta) + H2_objb
             H = 2 * block_diag(H1, H2)
-            f1 = 2 * (alpha * err_t1.T @ Jt1 + (1.0 - alpha) * err_r1.T @ Nr1) * beta
-            f2 = 2 * (alpha * err_t2.T @ Jt2 + (1.0 - alpha) * err_r2.T @ Nr2) * (1.0 - beta)
+            f1 = 2 * (alpha * err_t1.T @ Jt1 + (1.0 - alpha) * err_r1.T @ Nr1) * beta * gain
+            f2 = 2 * (alpha * err_t2.T @ Jt2 + (1.0 - alpha) * err_r2.T @ Nr2) * (1.0 - beta) * gain
             f = np.hstack([f1, f2])
 
             # W_ineq = np.zeros([1, robot1_dim + robot2_dim])
