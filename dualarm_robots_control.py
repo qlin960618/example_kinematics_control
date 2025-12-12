@@ -15,12 +15,19 @@ from dqrobotics.solvers import DQ_QuadprogSolver
 import helper as dqh
 from vs_robot import VrepRobot
 
-import logging
 
-# logger init
-logging.basicConfig()
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+# import logging
+#
+# # logger init
+# logging.basicConfig()
+# logger = logging.getLogger(__name__)
+# logger.setLevel(logging.INFO)
+
+class logger:
+    @staticmethod
+    def info(msg):
+        print("[INFO]: " + msg)
+
 
 CONTROL_PARAMETERS = {
     "tau": 0.004,  # sampling time
@@ -47,8 +54,8 @@ CONTROL_PARAMETERS = {
 
     "robot_1_reference_frame_name": "VS050_reference_frame_1",
     "robot_2_reference_frame_name": "VS050_reference_frame_2#0",
-    "robot_1_joints_names": [f"VS050_joint{i+1}_1" for i in range(6)],
-    "robot_2_joints_names": [f"VS050_joint{i+1}_2#0" for i in range(6)],
+    "robot_1_joints_names": [f"VS050_joint{i + 1}_1" for i in range(6)],
+    "robot_2_joints_names": [f"VS050_joint{i + 1}_2#0" for i in range(6)],
     "robot_1_json": "./vs_robot/denso_vs050_DH_test.json",
     "robot_2_json": "./vs_robot/denso_vs050_DH_test.json",
     "robot_1_x": "x1",
@@ -106,6 +113,10 @@ def main(config):
     robot2_q_minus = robot2_interface.get_lower_q_limit()
     robot1_q_plus = robot1_interface.get_upper_q_limit()
     robot2_q_plus = robot2_interface.get_upper_q_limit()
+    robot1_q_dot_minus = robot1_interface.get_lower_q_dot_limit()
+    robot2_q_dot_minus = robot2_interface.get_lower_q_dot_limit()
+    robot1_q_dot_plus = robot1_interface.get_upper_q_dot_limit()
+    robot2_q_dot_plus = robot2_interface.get_upper_q_dot_limit()
 
     ##################################################
     # start simulation inside try clause to ensure safe exit
@@ -182,10 +193,22 @@ def main(config):
             robot_joint_limit = np.vstack([-np.eye(6), np.eye(6)])
             W_joint_limits = block_diag(robot_joint_limit, robot_joint_limit)
 
-            w_joint_limits = np.hstack([-(robot1_q_minus - robot1_q),
-                                        robot1_q_plus - robot1_q,
-                                        -(robot2_q_minus - robot2_q),
-                                        robot2_q_plus - robot2_q]) * config['eta_d_joint']
+            w_joint_limits = np.hstack([
+                -(robot1_q_minus - robot1_q),
+                robot1_q_plus - robot1_q,
+                -(robot2_q_minus - robot2_q),
+                robot2_q_plus - robot2_q
+            ]) * config['eta_d_joint']
+
+            #################################
+            # Joint Velocity limit constraints
+            #################################
+            robot_q_dot_limit = np.vstack([-np.eye(6), np.eye(6)])
+            W_velocity_limits = block_diag(robot_q_dot_limit, robot_q_dot_limit)
+            w_velocity_limits = np.hstack([
+                -robot1_q_dot_minus, robot1_q_dot_plus,
+                -robot2_q_dot_minus, robot2_q_dot_plus
+            ])
 
             #################################
             # Example Robot Line to Robot Line VFI
@@ -205,7 +228,7 @@ def main(config):
             J1_l = DQ_Kinematics.line_jacobian(dql.haminus8(line1_tfdq) @ Jx1, line1_x, dql.k_)
             J2_l = DQ_Kinematics.line_jacobian(dql.haminus8(line2_tfdq) @ Jx2, line2_x, dql.k_)
             D_l12 = DQ_Geometry.line_to_line_squared_distance(line1_l_dq, line2_l_dq)
-            D_l_tilda = (D_l12 - config['d_safe_cylinder']**2) * config['eta_d_cylinder']
+            D_l_tilda = (D_l12 - config['d_safe_cylinder'] ** 2) * config['eta_d_cylinder']
             J_1_2 = DQ_Kinematics.line_to_line_distance_jacobian(J1_l, line1_l_dq, line2_l_dq)
             J_2_1 = DQ_Kinematics.line_to_line_distance_jacobian(J2_l, line2_l_dq, line1_l_dq)
 
@@ -226,12 +249,11 @@ def main(config):
             line1_l_dq = line1_l + dql.E_ * (dql.cross(dql.translation(line1_x), line1_l))
             J1_l = DQ_Kinematics.line_jacobian(dql.haminus8(line1_tfdq) @ Jx1, line1_x, dql.k_)
             D_rcm = DQ_Geometry.point_to_line_squared_distance(dql.translation(rcm_x), line1_l_dq)
-            D_rcm_tilda = (D_rcm - config['d_safe_RCM']**2) * config['eta_d_RCM']
+            D_rcm_tilda = (D_rcm - config['d_safe_RCM'] ** 2) * config['eta_d_RCM']
             J_1_rcm = DQ_Kinematics.line_to_point_distance_jacobian(J1_l, line1_l_dq, dql.translation(rcm_x))
 
             W_rcm = np.hstack([J_1_rcm, np.zeros([1, robot2_dim])])
             w_rcm = np.array([-D_rcm_tilda])
-
 
             #################################
             # Example robot Point tp Point Avoidance
@@ -244,7 +266,7 @@ def main(config):
             p1_x = robot1_x * p1_tfdq
             p2_x = robot2_x * p2_tfdq
             D_p2p = DQ_Geometry.point_to_point_squared_distance(dql.translation(p1_x), dql.translation(p2_x))
-            D_p2p_tilda = (D_p2p - config['d_safe_p2p']**2) * config['eta_d_p2p']
+            D_p2p_tilda = (D_p2p - config['d_safe_p2p'] ** 2) * config['eta_d_p2p']
             J_p1_2 = DQ_Kinematics.point_to_point_distance_jacobian(
                 DQ_Kinematics.translation_jacobian(dql.haminus8(p1_tfdq) @ Jx1, p1_x), dql.translation(p1_x),
                 dql.translation(p2_x)
@@ -256,8 +278,6 @@ def main(config):
 
             W_point_to_point = np.hstack([J_p1_2, J_p2_1])
             w_point_to_point = np.array([-D_p2p_tilda])
-
-
 
             #################################
             # Quadratic Programing
@@ -290,12 +310,14 @@ def main(config):
             # w_ineq = np.zeros([1])
             W_ineq = np.vstack([
                 W_joint_limits,
+                W_velocity_limits,
                 W_line_to_line,
                 W_rcm,
                 # W_point_to_point
             ])
             w_ineq = np.hstack([
                 w_joint_limits,
+                w_velocity_limits,
                 w_line_to_line,
                 w_rcm,
                 # w_point_to_point
