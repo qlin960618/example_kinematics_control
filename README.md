@@ -6,9 +6,10 @@ This tutorial is designed for those who have completed the [MATLAB lesson](https
 
 ### Python Requirements
 
-* Python >3.12
+* Python 3.10–3.13
 
   * dqrobotics
+  * dqrobotics-interface-coppeliasim-zmq
   * quadprog
   * numpy
   * scipy
@@ -22,57 +23,31 @@ source venv/bin/activate # or venv\Scripts\activate.bat for Windows
 ```
 
 ```shell
-python3 -m pip install dqrobotics dqrobotics-interface-coppeliasim-vrep==0.25.6a2 quadprog numpy scipy 
+python3 -m pip install --upgrade --pre \
+    dqrobotics dqrobotics-interface-coppeliasim-zmq quadprog numpy scipy
 ```
-
-**Note** : If you encounter issues installing `dqrobotics-interface-coppeliasim-vrep`, please follow the following command to build from source:
-
-```shell
-# install other dependencies first, specifically dqrobotics
-python3 -m pip install dqrobotics quadprog numpy scipy   
-
-pip install git+https://github.com/qlin960618/python-interface-coppeliasim-vrep.git@master
-```
-
-
 
 ### CoppeliaSim Requirements
 
-* CoppeliaSim EDU (at the time of writing this, versions 4.4.0 and 4.7.0 are supported)
+* CoppeliaSim 4.4 or newer; 4.6 or newer is recommended.
+* The built-in **ZMQ Remote API Server** add-on must be running.
 
-1. Download CoppeliaSim from [Coppelia Robotics](https://www.coppeliarobotics.com/previousVersions).
+1. Download CoppeliaSim from [Coppelia Robotics](https://www.coppeliarobotics.com/).
 2. Run the installation procedure.
+3. Start CoppeliaSim and confirm that **Modules → Connectivity → ZMQ Remote API Server** is running. It normally starts automatically and listens on port `23000`.
 
-### Opening Additional Ports for VREP Connection
+The controllers connect to `localhost:23000` by default. To use another host or port, change `coppeliasim_host` or `coppeliasim_port` in the relevant script. Do not edit `remoteApiConnections.txt`: that file configures the deprecated legacy remote API, not ZeroMQ.
 
-#### Windows
-
-1. Open the file located at:
-
-   * Windows: `C:\Program Files\CoppeliaRobotics\CoppeliaSimEdu\remoteApiConnections.txt`
-   * Linux: `[CoppeliaSim Installation Location]/CoppeliaSimEdu/remoteApiConnections.txt`
-   * MacOS: `[CoppeliaSim.app -> Open Package Contents]/Contents/Resources/remoteApiConnections.txt`
-
-2. Add the following lines to the file (replace with your desired ports):
-
-```plaintext
-portIndex2_port             = 19998
-portIndex2_debug            = false
-portIndex2_syncSimTrigger   = true
-
-portIndex3_port             = 19999
-portIndex3_debug            = false
-portIndex3_syncSimTrigger   = true
-```
+The new interface class is `DQ_CoppeliaSimInterfaceZMQ`, supplied by the `dqrobotics-interface-coppeliasim-zmq` package.
 
 ## Running the Tutorial
 
 1. Open the CoppeliaSim scene `scene/VS050_TutorialControl_scene.ttt`.
-2. Press the play button in CoppeliaSim to start the simulation.
+2. Ensure the ZMQ Remote API Server add-on is running. The script starts and stops the simulation remotely.
 3. Run the Python script:
 
 ```shell
-python3 dualarm_robot_control.py
+python3 dualarm_robots_control.py
 ```
 
 4. Select the `xd1` and `xd2` in the scene, move them around, and observe how the robot arm follows the end effector.
@@ -96,7 +71,7 @@ pip install --index-url https://gitea.qlin.me/api/packages/qlin/pypi/simple/ nml
 ### Running the Example
 
 1. Open the CoppeliaSim scene `scene/VS050_TutorialControl_scene.ttt`.
-2. Press the play button in CoppeliaSim to start the simulation.
+2. Ensure the ZMQ Remote API Server add-on is running. The script starts and stops the simulation remotely.
 3. Run the Python script:
 
 ```shell

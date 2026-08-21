@@ -9,11 +9,11 @@ from scipy.linalg import block_diag
 import dqrobotics as dql
 from dqrobotics.robot_modeling import DQ_Kinematics
 from dqrobotics.utils import DQ_Geometry
-from dqrobotics.interfaces.vrep import DQ_VrepInterface
+from dqrobotics.interfaces.coppeliasim import DQ_CoppeliaSimInterfaceZMQ
 from dqrobotics.solvers import DQ_QuadprogSolver
 
 import helper as dqh
-from vs_robot import VrepRobot
+from vs_robot import CoppeliaSimRobot
 
 
 # import logging
@@ -46,8 +46,9 @@ CONTROL_PARAMETERS = {
     "eta_d_p2p": 1.0,
     "d_safe_p2p": 0.1,
 
-    "vrep_ip": "127.0.0.1",  # ip of the computer running CoppeliaSim
-    "vrep_port": 20000,  # need to match remoteAPI.txt defined port
+    # CoppeliaSim ZeroMQ Remote API connection settings.
+    "coppeliasim_host": "localhost",
+    "coppeliasim_port": 23000,
 
     "robot1_init_q": [0.0, 0.0, 1.57079637, 0.0, 0.61086524, 0.0],
     "robot2_init_q": [-0.61086524, 0.0, 1.57079637, 0.0, 0.0, 0.0],
@@ -81,27 +82,33 @@ def translation_error(t, td):
 
 def main(config):
     logger.info("Started Main loaded config info")
-    vrep_interface = DQ_VrepInterface()
-    vrep_interface.connect(config['vrep_ip'], config['vrep_port'], 100, 10)
-    vrep_interface.start_simulation()
+    coppeliasim_interface = DQ_CoppeliaSimInterfaceZMQ()
+    if not coppeliasim_interface.connect(
+        config['coppeliasim_host'], config['coppeliasim_port']
+    ):
+        raise RuntimeError(
+            "Unable to connect to CoppeliaSim ZeroMQ Remote API at "
+            f"{config['coppeliasim_host']}:{config['coppeliasim_port']}. "
+            "Ensure CoppeliaSim is running and its ZMQ Remote API Server add-on is enabled."
+        )
     solver = DQ_QuadprogSolver()
 
     ##################################################
-    # VRep and Robot modeling initialization
+    # CoppeliaSim and robot modeling initialization
     ##################################################
-    robot1_interface = VrepRobot(config['robot_1_json'], vrep_interface)
-    robot2_interface = VrepRobot(config['robot_2_json'], vrep_interface)
-    robot1_interface.set_vrep_joint_names(config['robot_1_joints_names'])
-    robot2_interface.set_vrep_joint_names(config['robot_2_joints_names'])
-    robot1_interface.set_vrep_robot_ref_name(config['robot_1_reference_frame_name'])
-    robot2_interface.set_vrep_robot_ref_name(config['robot_2_reference_frame_name'])
+    robot1_interface = CoppeliaSimRobot(config['robot_1_json'], coppeliasim_interface)
+    robot2_interface = CoppeliaSimRobot(config['robot_2_json'], coppeliasim_interface)
+    robot1_interface.set_joint_names(config['robot_1_joints_names'])
+    robot2_interface.set_joint_names(config['robot_2_joints_names'])
+    robot1_interface.set_reference_frame_name(config['robot_1_reference_frame_name'])
+    robot2_interface.set_reference_frame_name(config['robot_2_reference_frame_name'])
     robot1_interface.set_x_and_xd_name(config['robot_1_x'], config['robot_1_xd'])
     robot2_interface.set_x_and_xd_name(config['robot_2_x'], config['robot_2_xd'])
     robots = [robot1_interface, robot2_interface]
 
-    # get reference frame from vrep and set it to the robot model
+    # Get the reference frame from CoppeliaSim and set it on the robot model.
     for robot in robots:
-        robot.apply_vrep_reference_frame()
+        robot.apply_reference_frame()
         # Set the tooltip position, tip of the rod
         robot.set_effector(dql.DQ([1., 0., 0., 0., 0., 0., 0., 0.075]))
 
@@ -123,7 +130,7 @@ def main(config):
     ##################################################
     try:
         logger.info("Starting simulation")
-        robot1_interface.start_simulation()
+        coppeliasim_interface.start_simulation()
 
         # Rate controller
         rate = dqh.RateController(loop_rate=1.0 / config['tau'], debug=False)
@@ -155,7 +162,7 @@ def main(config):
         while True:
             # Control Method
             ##################################################
-            # 1, control xd from vrep
+            # 1, control xd from CoppeliaSim
             ##################################################
             robot1_xd = robot1_interface.get_xd_pose()
             robot2_xd = robot2_interface.get_xd_pose()
@@ -240,7 +247,7 @@ def main(config):
             # M. M. Marinho, and et. al., “Active Constraints using Vector Field Inequalities for Surgical Robots,” ICRA, 2018,
             # Section V, C
             #################################
-            rcm_x = vrep_interface.get_object_pose(config['RCM_obj_name'])
+            rcm_x = coppeliasim_interface.get_object_pose(config['RCM_obj_name'])
             line1_tfdq = dql.DQ([1])
 
             line1_x = robot1_x * line1_tfdq  # robot_pose * line_transformation
@@ -364,9 +371,8 @@ def main(config):
         logger.error(str(exc_type) + " : " + str(fname) + " : " + str(exc_tb.tb_lineno))
         logger.error("{}.".format(str(exc)))
 
-    vrep_interface.stop_simulation()
-    vrep_interface.disconnect_all()
-    vrep_interface.disconnect_all()
+    coppeliasim_interface.stop_simulation()
+    coppeliasim_interface.disconnect()
 
 
 if __name__ == '__main__':

@@ -1,2 +1,2 @@
 from .robot_loader import RobotLoader
-from .robot_vrep_interface import VrepRobot
+from .robot_coppeliasim_interface import CoppeliaSimRobot
